@@ -1,27 +1,20 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/css/(.*)",
-      "dest": "/website/css/$1"
+      "source": "/css/(.*)",
+      "destination": "/website/css/$1"
     },
     {
-      "src": "/js/(.*)",
-      "dest": "/website/js/$1"
+      "source": "/js/(.*)",
+      "destination": "/website/js/$1"
     },
     {
-      "src": "/images/(.*)",
-      "dest": "/website/images/$1"
+      "source": "/images/(.*)",
+      "destination": "/website/images/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/api/index.py"
+      "source": "/(.*)",
+      "destination": "/api/index.py"
     }
   ],
   "env": {
