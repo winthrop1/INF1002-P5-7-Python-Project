@@ -23,6 +23,8 @@ A comprehensive Python-based phishing email detection application developed for 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [Deployment](#deployment)
+  - [Vercel Deployment](#vercel-deployment)
 - [Detection Algorithm](#detection-algorithm)
 - [API Endpoints](#api-endpoints)
 - [Dependencies](#dependencies)
@@ -573,6 +575,165 @@ Tests email parsing functionality on test file
 python datas.py
 ```
 Builds safe domain database from ham email dataset
+
+---
+
+## Deployment
+
+### Vercel Deployment
+
+This application is configured for deployment on Vercel's serverless platform. The deployment automatically handles scaling and provides a production-ready environment.
+
+#### Quick Deploy to Vercel
+
+1. **Prerequisites**
+   - GitHub account
+   - Vercel account (free tier available at [vercel.com](https://vercel.com))
+   - Project pushed to GitHub repository
+
+2. **Deploy via Vercel Dashboard**
+
+   **Step 1: Import Project**
+   ```
+   1. Visit https://vercel.com/new
+   2. Click "Import Git Repository"
+   3. Select your GitHub repository
+   4. Click "Import"
+   ```
+
+   **Step 2: Configure Build Settings**
+   ```
+   Framework Preset: Other
+   Build Command: (leave empty)
+   Output Directory: (leave empty)
+   Install Command: pip install -r requirements.txt
+   ```
+
+   **Step 3: Add Environment Variables**
+
+   In the Vercel dashboard, go to **Settings > Environment Variables** and add:
+
+   **Required Variables:**
+   ```env
+   SECRET_KEY=<generate-a-secure-random-key>
+   ADMIN_USERNAME=<your-admin-username>
+   ADMIN_PASSWORD=<your-admin-password>
+   ```
+
+   **Optional Variables (for email reporting):**
+   ```env
+   EMAIL_ADDRESS=<your-gmail@gmail.com>
+   EMAIL_KEY=<your-gmail-app-password>
+   ```
+
+   **All other environment variables** from `.env.example` can be added with their default values.
+
+   **Step 4: Deploy**
+   ```
+   Click "Deploy"
+   Wait for deployment to complete (2-3 minutes)
+   Visit your live URL: https://your-project-name.vercel.app
+   ```
+
+3. **Deploy via Vercel CLI** (Alternative)
+
+   ```bash
+   # Install Vercel CLI
+   npm install -g vercel
+
+   # Login to Vercel
+   vercel login
+
+   # Deploy from project directory
+   cd INF1002-P5-7-Project
+   vercel
+
+   # Follow prompts to configure deployment
+   # Add environment variables when prompted
+
+   # Deploy to production
+   vercel --prod
+   ```
+
+4. **Important Notes for Vercel Deployment**
+
+   **Serverless Mode Behavior:**
+   - ✅ **Works:** All email analysis features (keywords, domain check, URL analysis)
+   - ✅ **Works:** Email reporting via SMTP
+   - ✅ **Works:** Admin dashboard with dummy data
+   - ⚠️ **Limited:** File storage disabled (analysis results not persisted)
+   - ⚠️ **Limited:** Admin dashboard shows dummy/demo data
+
+   **Environment Detection:**
+   - The application automatically detects Vercel environment via `VERCEL=true` env variable
+   - In serverless mode, file storage is disabled and dummy data is used for charts
+   - All core phishing detection features remain fully functional
+
+   **Testing Serverless Mode Locally:**
+   ```bash
+   # Add to your .env file
+   USE_DUMMY_DATA=true
+
+   # Run the application
+   python website.py
+   ```
+
+5. **Switching Between Local and Serverless Data**
+
+   The application automatically switches between real data (local) and dummy data (Vercel) based on environment:
+
+   **Local Development (Real Data):**
+   ```bash
+   # .env file - no special configuration needed
+   # Stores analysis results in dataset/safe_keep/
+   # Dashboard shows real analytics
+   python website.py
+   ```
+
+   **Vercel Production (Dummy Data):**
+   ```bash
+   # Vercel automatically sets VERCEL=true
+   # File storage disabled
+   # Dashboard shows demo statistics:
+   #   - 42 Safe emails
+   #   - 18 Phishing emails
+   #   - Top keywords: urgent, verify, account, click, suspended
+   ```
+
+   **Force Dummy Data Locally (Testing):**
+   ```env
+   # Add to .env file
+   USE_DUMMY_DATA=true
+   ```
+
+6. **Post-Deployment Configuration**
+
+   **Custom Domain (Optional):**
+   ```
+   Vercel Dashboard > Domains > Add Domain
+   Follow DNS configuration instructions
+   ```
+
+   **Environment Variables Update:**
+   ```
+   Vercel Dashboard > Settings > Environment Variables
+   Edit any variable and redeploy
+   ```
+
+   **Monitoring:**
+   ```
+   Vercel Dashboard > Deployments > View Logs
+   Monitor function invocations and errors
+   ```
+
+7. **Upgrading to Full Persistence (Future)**
+
+   To enable full data persistence on Vercel, consider:
+   - **Database Integration:** Add Vercel Postgres or MongoDB Atlas
+   - **External Storage:** Use AWS S3 or Vercel Blob for file storage
+   - **Modify Code:** Update `userdatastore.py` and `parse_stored_emails()` to use database
+
+   This is not required for basic demonstration but useful for production deployment.
 
 ---
 

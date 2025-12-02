@@ -8,11 +8,16 @@ This is a phishing email detection system that uses a multi-component rule-based
 
 ## Running the Application
 
-**Start the Flask web server:**
+**Local Development:**
 ```bash
 python website.py
 ```
 The application will be available at `http://127.0.0.1:5000`.
+
+**Vercel Deployment:**
+- Application is deployed as a serverless function via `api/index.py`
+- Vercel automatically sets `VERCEL=true` environment variable
+- See [Deployment Configuration](#deployment-configuration) section below
 
 **Test individual modules:**
 ```bash
@@ -269,6 +274,170 @@ Remember: All functions update global `url_suspicion_score` and `reasons`.
 ## Testing Notes
 
 - Test emails located in `dataset/testing/spam/` and `dataset/testing/ham/`
-- Each analysis result is automatically stored in `dataset/safe_keep/` with timestamp
-- Admin dashboard reads from `dataset/safe_keep/` to generate statistics
+- Each analysis result is automatically stored in `dataset/safe_keep/` with timestamp (local mode only)
+- Admin dashboard reads from `dataset/safe_keep/` to generate statistics (local mode only)
 - Manual testing can be done by uploading files through web interface or running individual modules
+
+## Deployment Configuration
+
+### Vercel Serverless Deployment
+
+The application is configured for deployment on Vercel's serverless platform with automatic environment detection.
+
+#### File Structure for Deployment
+
+**Vercel Entrypoint:**
+- `api/index.py`: Serverless function entrypoint that imports and exports the Flask app from `website.py`
+- Vercel automatically detects this file and creates a serverless function
+
+**Configuration Files:**
+- `vercel.json`: Vercel build and routing configuration
+  - Specifies Python runtime via `@vercel/python`
+  - Routes static assets (`/css/*`, `/js/*`, `/images/*`) to `website/` folder
+  - Routes all other requests to `api/index.py`
+  - Sets `VERCEL=true` environment variable automatically
+
+- `.vercelignore`: Excludes unnecessary files from deployment
+  - Virtual environments (`.venv`, `venv`)
+  - Git files (`.git`)
+  - Environment files (`.env`)
+  - Log files (`log/`)
+  - Large datasets (`dataset/kaggle/`, `dataset/testing/`)
+  - Analysis storage (`dataset/safe_keep/`)
+
+#### Environment Detection and Mode Switching
+
+The application automatically detects deployment environment and adjusts behavior:
+
+**Environment Variables for Mode Control:**
+```python
+# In website.py
+is_serverless = os.getenv('VERCEL', '').lower() == 'true' or os.getenv('USE_DUMMY_DATA', '').lower() == 'true'
+```
+
+**Serverless Mode (VERCEL=true):**
+- File storage disabled: `storeDatainTxt()` is skipped
+- Dummy data used for admin dashboard charts via `get_dummy_dashboard_data()`
+- All core detection features (keywords, domain, URL) remain fully functional
+- Email reporting via SMTP works normally
+
+**Local Mode (default):**
+- File storage enabled: Analysis results saved to `dataset/safe_keep/`
+- Real data used for admin dashboard from stored analysis files
+- All features fully functional
+
+**Testing Serverless Behavior Locally:**
+Add to `.env` file:
+```env
+USE_DUMMY_DATA=true
+```
+
+#### Dummy Data for Admin Dashboard
+
+When in serverless mode or no stored files found, `get_dummy_dashboard_data()` returns:
+```python
+{
+    'safe_count': 42,
+    'phishing_count': 18,
+    'top_keywords': [
+        ('urgent', 15),
+        ('verify', 12),
+        ('account', 10),
+        ('click', 8),
+        ('suspended', 6)
+    ],
+    'total_emails': 60
+}
+```
+
+This allows the admin dashboard to display representative data even without persistent storage.
+
+#### Serverless Limitations and Workarounds
+
+**What Works:**
+- ✅ All email analysis (keyword detection, domain checking, URL assessment)
+- ✅ Risk scoring and classification
+- ✅ Email reporting via SMTP
+- ✅ Admin dashboard with dummy/demo data
+- ✅ Session-based authentication
+
+**What's Limited:**
+- ⚠️ File writes don't persist between function invocations
+- ⚠️ Analysis history not stored (use database for persistence)
+- ⚠️ Admin dashboard shows dummy data (not real analytics)
+- ⚠️ Logs don't persist (use Vercel logs or external logging service)
+
+**Future Upgrades for Full Serverless Functionality:**
+1. **Add Database:** Integrate Vercel Postgres or MongoDB Atlas
+   - Modify `userdatastore.py` to write to database
+   - Update `parse_stored_emails()` to query database
+2. **External Logging:** Use logging service (Sentry, LogRocket)
+3. **Blob Storage:** Use Vercel Blob or S3 for file persistence
+
+#### Required Environment Variables on Vercel
+
+Configure these in Vercel Dashboard > Settings > Environment Variables:
+
+**Essential:**
+```env
+SECRET_KEY=<generate-with: python -c "import secrets; print(secrets.token_hex(32))">
+ADMIN_USERNAME=<your-admin-username>
+ADMIN_PASSWORD=<your-admin-password>
+```
+
+**Optional (Email Reporting):**
+```env
+EMAIL_ADDRESS=<your-gmail@gmail.com>
+EMAIL_KEY=<gmail-app-password>
+```
+
+**All other variables** from `.env.example` should be added with their default values for proper configuration.
+
+#### Deployment Process
+
+**Via Vercel Dashboard:**
+1. Connect GitHub repository
+2. Import project
+3. Framework preset: Other
+4. Add environment variables
+5. Deploy
+
+**Via Vercel CLI:**
+```bash
+npm install -g vercel
+vercel login
+vercel  # Follow prompts
+vercel --prod  # Deploy to production
+```
+
+#### Static File Handling
+
+The `vercel.json` routes configuration ensures static assets are served correctly:
+- CSS files: `/css/*` → `/website/css/*`
+- JavaScript: `/js/*` → `/website/js/*`
+- Images: `/images/*` → `/website/images/*`
+- Templates: Flask's `template_folder='website'` handles HTML rendering
+
+#### Session Management in Serverless
+
+Flask sessions work in serverless mode because:
+- Sessions are cookie-based (not server-side storage)
+- `SECRET_KEY` encrypts session cookies
+- No persistent storage required for authentication
+- Admin login persists across function invocations via encrypted cookies
+
+#### Monitoring and Debugging
+
+**Vercel Dashboard:**
+- View function logs: Deployments > Function Logs
+- Monitor invocations and errors
+- Check build logs for deployment issues
+
+**Local Testing:**
+```bash
+# Test with dummy data (simulates Vercel)
+USE_DUMMY_DATA=true python website.py
+
+# Test with real data (local mode)
+python website.py
+```

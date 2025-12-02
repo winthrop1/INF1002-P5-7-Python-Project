@@ -162,10 +162,15 @@ def upload_file():
                 EmailDomainMsg=EmailDomainMsg
             )
 
-            # Store analysis results in a text file
-            storing_notify, success = storeDatainTxt(classification, keywords,total_risk_scoring, EmailDomainMsg, email_text, url_reason_pairs, number_of_urls)
-            if success:
-                log_data_storage_success()
+            # Store analysis results in a text file (skip in serverless mode)
+            is_serverless = os.getenv('VERCEL', '').lower() == 'true'
+            if is_serverless:
+                storing_notify = "Data storage disabled in serverless mode."
+                success = False
+            else:
+                storing_notify, success = storeDatainTxt(classification, keywords,total_risk_scoring, EmailDomainMsg, email_text, url_reason_pairs, number_of_urls)
+                if success:
+                    log_data_storage_success()
 
             # Send email report to user
             if useremail:
@@ -243,23 +248,51 @@ def upload_file():
                         number_of_unique_domains = number_of_unique_domains, #number of unique domains found in the email
                         success = success)
 
+def get_dummy_dashboard_data():
+    """Generate dummy data for dashboard when in serverless mode or no stored data available"""
+    dummy_data = {
+        'safe_count': 42,
+        'phishing_count': 18,
+        'top_keywords': [
+            ('urgent', 15),
+            ('verify', 12),
+            ('account', 10),
+            ('click', 8),
+            ('suspended', 6)
+        ],
+        'total_emails': 60
+    }
+    return dummy_data
+
 def parse_stored_emails():
     """Parse all email data files and extract statistics"""
+    # Check if we're in serverless mode (Vercel) or local mode
+    is_serverless = os.getenv('VERCEL', '').lower() == 'true' or os.getenv('USE_DUMMY_DATA', '').lower() == 'true'
+
+    if is_serverless:
+        print("Running in serverless mode - using dummy data for dashboard")
+        return get_dummy_dashboard_data()
+
     safe_count = 0
     phishing_count = 0
     all_keywords = []
-    
+
     # Extract all .txt files from safe_keep folder
     folder_path = os.path.join(os.path.dirname(__file__), 'dataset', 'safe_keep', '*.txt')
     files = glob.glob(folder_path)
-    
+
     print(f"Print: Found {len(files)} files to parse")
-    
+
+    # If no files found, return dummy data
+    if not files:
+        print("No stored files found - using dummy data")
+        return get_dummy_dashboard_data()
+
     for file_path in files:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-                
+
                 # Extract classification
                 classification_match = re.search(r'Classification:\s*(Safe|Phishing)', content, re.IGNORECASE)
                 if classification_match:
@@ -268,22 +301,22 @@ def parse_stored_emails():
                         safe_count += 1
                     else:
                         phishing_count += 1
-                
+
                 # Extract keywords from tuple format: ('location', 'keyword')
                 # This matches the exact format from your stored files
                 keyword_pattern = r"\('(?:subject|early_body|remaining_body)',\s*'([^']+)'\)"
                 matches = re.findall(keyword_pattern, content)
-                
+
                 if matches:
                     print(f"Print: Found {len(matches)} keywords in {os.path.basename(file_path)}")
                     all_keywords.extend(matches)
-        
+
         except Exception as e:
             print(f"ERROR parsing {file_path}: {e}")
             continue
-    
+
     print(f"Print: Total keywords found: {len(all_keywords)}")
-    
+
     # Clean keywords and count frequencies
     if all_keywords:
         # Remove duplicates per analysis (convert to lowercase for consistent counting)
@@ -294,7 +327,7 @@ def parse_stored_emails():
     else:
         top_keywords = []
         print("Print: No keywords found in any files!")
-    
+
     return {
         'safe_count': safe_count,
         'phishing_count': phishing_count,

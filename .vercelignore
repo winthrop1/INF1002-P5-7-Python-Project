@@ -1,0 +1,38 @@
+# Python virtual environment
+.venv
+venv
+env
+__pycache__
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment files (configure in Vercel dashboard instead)
+.env
+.env.local
+
+# Logs
+log/
+*.log
+
+# Test datasets (large files, not needed in production)
+dataset/kaggle/
+dataset/testing/
+
+# Mac OS
+.DS_Store
+
+# Documentation (optional - comment out if you want these deployed)
+# README.md
+# CLAUDE.md
+# LICENSE
+
+# Stored analysis results (won't work in serverless anyway)
+dataset/safe_keep/
